@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from core.config import settings
 
 app = FastAPI(
     title="AI Tech Quiz Application",
@@ -7,12 +8,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow all origins for local development
+# CORS configuration - restrict to specific origins
+allowed_origins = [
+    "http://localhost:5173",      # Vite dev server
+    "http://localhost:3000",      # Alternative dev port
+    "http://127.0.0.1:5173",      # Localhost alternative
+    "http://127.0.0.1:3000",      # Localhost alternative
+    # Add your production frontend URL here
+    # "https://yourdomain.com",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

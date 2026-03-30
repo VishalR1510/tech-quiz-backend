@@ -15,8 +15,23 @@ async def generate_feedback(score: int, total: int, topic: str, user_answers_eva
         
     try:
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        # Using gemini-1.5-flash as the primary fast model
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Try models in order of preference
+        models_to_try = ['gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.0-pro']
+        model = None
+        
+        for model_name in models_to_try:
+            try:
+                print(f"[DEBUG] Trying model: {model_name}")
+                model = genai.GenerativeModel(model_name)
+                break
+            except Exception as model_err:
+                print(f"[DEBUG] Model {model_name} failed: {str(model_err)[:100]}")
+                continue
+        
+        if not model:
+            logger.error("No available AI models found")
+            return f"Quick Feedback: You scored {score} out of {total} in {topic}. Review the questions you missed for improvement."
         
         prompt = f"""
         You are an expert technical tutor. A student just completed a quiz on {topic}.
@@ -36,5 +51,6 @@ async def generate_feedback(score: int, total: int, topic: str, user_answers_eva
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
+        print(f"[ERROR] Error generating AI feedback: {e}")
         logger.error(f"Error generating AI feedback: {e}")
-        return "AI feedback generation failed at this time. Please review your answers manually."
+        return f"Quick Feedback: You scored {score} out of {total} in {topic}. Review your performance and focus on the topics where you had difficulty."
