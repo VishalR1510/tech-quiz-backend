@@ -17,7 +17,7 @@ async def generate_feedback(score: int, total: int, topic: str, user_answers_eva
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
         # Try models in order of preference
-        models_to_try = ['gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.0-pro']
+        models_to_try = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-1.0-pro']
         model = None
         
         for model_name in models_to_try:
@@ -36,16 +36,18 @@ async def generate_feedback(score: int, total: int, topic: str, user_answers_eva
         prompt = f"""
         You are an expert technical tutor. A student just completed a quiz on {topic}.
         They scored {score} out of {total}.
-        Here is a breakdown of their performance:
+        
+        Here is a detailed breakdown of their performance, including the questions, their answers, and the correct answers:
         {user_answers_eval}
         
-        Provide constructive educational feedback in 2-3 short readable paragraphs.
-        Include:
-        - Strengths
-        - Weak topics based on wrong answers
-        - Actionable improvement suggestions
+        Please provide a comprehensive, detailed, and constructive educational feedback. Do not give a generic 2-line response.
+        Your feedback should include:
+        1. An overall summary of their performance (strengths and areas for improvement).
+        2. A specific analysis of the questions they answered incorrectly. For each wrong answer, explain why their answer was wrong and why the correct answer is right. Provide context or a brief explanation of the underlying concept.
+        3. If they answered everything correctly, outline advanced topics they can explore next based on this quiz.
+        4. Actionable recommendations on what to study next.
         
-        Keep it professional, encouraging, and easy to read. Avoid heavy unstructured text; make sentences clear.
+        Format the feedback clearly using human-readable paragraphs. IMPORTANT: DO NOT use any Markdown formatting. DO NOT use asterisks (*), hashes (#), dashes (-), or bold/italic markers. Output pure, plain text only. Be encouraging but deeply informative and educational.
         """
         
         response = model.generate_content(prompt)

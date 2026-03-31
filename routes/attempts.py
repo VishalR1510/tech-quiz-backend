@@ -74,7 +74,8 @@ async def submit_quiz(quiz_id: str, attempt_data: AttemptSubmit, db=Depends(db_a
             eval_data.append({
                 "question": q["question_text"],
                 "user_answer": user_ans,
-                "is_correct": is_correct
+                "is_correct": is_correct,
+                "correct_answer": correct
             })
         
         print(f"[DEBUG] Score: {score}/{total}")

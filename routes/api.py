@@ -2,9 +2,11 @@
 from fastapi import APIRouter
 from .quizzes import router as quizzes_router
 from .attempts import router as attempts_router
+from .auth import router as auth_router
 
 router = APIRouter()
 
 # Include all route modules
 router.include_router(quizzes_router)
 router.include_router(attempts_router)
+router.include_router(auth_router)
