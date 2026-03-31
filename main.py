@@ -11,21 +11,29 @@ app = FastAPI(
 # CORS configuration - restrict to specific origins
 allowed_origins = [
     "https://tech-quiz-frontend-iota.vercel.app",
+    "https://tech-quiz-frontend-iota.vercel.app/", # Add with trailing slash just in case
     "http://localhost:5173",      # Vite dev server
     "http://localhost:3000",      # Alternative dev port
     "http://127.0.0.1:5173",      # Localhost alternative
     "http://127.0.0.1:3000",      # Localhost alternative
-    # Add your production frontend URL here
-    # "https://yourdomain.com",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"], # More permissive for testing
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("--- Environment Variable Check ---")
+    print(f"SUPABASE_URL: {'Set' if settings.SUPABASE_URL else 'NOT SET'}")
+    print(f"SUPABASE_KEY: {'Set' if settings.SUPABASE_KEY else 'NOT SET'}")
+    print(f"SUPABASE_SERVICE_ROLE_KEY: {'Set' if settings.SUPABASE_SERVICE_ROLE_KEY else 'NOT SET'}")
+    print(f"GEMINI_API_KEY: {'Set' if settings.GEMINI_API_KEY else 'NOT SET'}")
+    print("----------------------------------")
 
 @app.get("/")
 async def root():
