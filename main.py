@@ -10,7 +10,7 @@ app = FastAPI(
 
 # CORS configuration - restrict to specific origins
 allowed_origins = [
-    "https://tech-quiz-frontend-iota.vercel.app"
+    "https://tech-quiz-frontend-iota.vercel.app",
     "http://localhost:5173",      # Vite dev server
     "http://localhost:3000",      # Alternative dev port
     "http://127.0.0.1:5173",      # Localhost alternative
