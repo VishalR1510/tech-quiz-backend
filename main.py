@@ -8,8 +8,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow local frontend development servers.
+# Allow the deployed frontend and local development servers.
 allowed_origins = [
+    "https://tech-quiz-frontend-xi.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
