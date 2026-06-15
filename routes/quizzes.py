@@ -35,19 +35,16 @@ def _resolve_quiz_id(quiz_id: str, db) -> tuple:
     Resolve quiz_id which could be UUID or quiz_code.
     Returns (actual_quiz_id, quiz_data)
     """
-    quiz_res = None
-    
+    normalized_id = quiz_id.strip()
+
     try:
-        # First try UUID
-        print(f"[DEBUG] Trying UUID query...")
-        quiz_res = db.table("quizzes").select("*").eq("id", quiz_id).execute()
-        print(f"[DEBUG] UUID query result: {len(quiz_res.data) if quiz_res.data else 0} quizzes found")
-    except Exception as uuid_err:
-        # If UUID fails, try quiz_code
-        print(f"[DEBUG] UUID query failed, trying quiz_code...")
-        quiz_res = db.table("quizzes").select("*").eq("quiz_code", quiz_id).execute()
-        print(f"[DEBUG] Quiz code query result: {len(quiz_res.data) if quiz_res.data else 0} quizzes found")
-    
+        uuid.UUID(normalized_id)
+        quiz_res = db.table("quizzes").select("*").eq("id", normalized_id).execute()
+    except ValueError:
+        quiz_res = db.table("quizzes").select("*").eq(
+            "quiz_code", normalized_id.upper()
+        ).execute()
+
     if not quiz_res.data:
         raise HTTPException(status_code=404, detail="Quiz not found")
     
@@ -91,10 +88,15 @@ async def get_quiz(quiz_id: str, db=Depends(db_admin)):
 async def get_quiz_by_code(code: str, db=Depends(db_client)):
     """Get quiz ID by quiz code"""
     try:
-        quiz_res = db.table("quizzes").select("*").eq("quiz_code", code).execute()
+        normalized_code = code.strip().upper()
+        quiz_res = db.table("quizzes").select("id").eq(
+            "quiz_code", normalized_code
+        ).execute()
         if not quiz_res.data:
             raise HTTPException(status_code=404, detail="Invalid quiz code")
         return {"quiz_id": quiz_res.data[0]["id"]}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -102,6 +104,8 @@ async def get_quiz_by_code(code: str, db=Depends(db_client)):
 @router.post("/quiz/create")
 async def create_quiz(quiz_data: QuizCreate, db=Depends(db_admin)):
     """Create a new quiz with questions"""
+    quiz_id = None
+
     try:
         print(f"[DEBUG] Creating new quiz: {quiz_data.title}")
         quiz_code = str(uuid.uuid4())[:8].upper()
@@ -114,6 +118,9 @@ async def create_quiz(quiz_data: QuizCreate, db=Depends(db_admin)):
             "quiz_code": quiz_code
         }).execute()
         
+        if not quiz_insert.data:
+            raise RuntimeError("Database did not return the created quiz")
+
         quiz_id = quiz_insert.data[0]["id"]
         print(f"[DEBUG] Quiz created with ID: {quiz_id}, Code: {quiz_code}")
         
@@ -127,12 +134,20 @@ async def create_quiz(quiz_data: QuizCreate, db=Depends(db_admin)):
             })
         
         if questions_data:
-            db.table("questions").insert(questions_data).execute()
+            questions_insert = db.table("questions").insert(questions_data).execute()
+            if len(questions_insert.data or []) != len(questions_data):
+                raise RuntimeError("Not all quiz questions were created")
             print(f"[DEBUG] {len(questions_data)} questions inserted")
         
         return {"message": "Quiz created successfully", "quiz_code": quiz_code, "quiz_id": quiz_id}
     except Exception as e:
         print(f"[ERROR] Exception in create_quiz: {str(e)}")
+        if quiz_id:
+            try:
+                db.table("questions").delete().eq("quiz_id", quiz_id).execute()
+                db.table("quizzes").delete().eq("id", quiz_id).execute()
+            except Exception as cleanup_error:
+                print(f"[ERROR] Failed to clean up partial quiz {quiz_id}: {cleanup_error}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

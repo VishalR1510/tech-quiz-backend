@@ -26,7 +26,7 @@ class QuestionCreate(BaseModel):
 class QuizCreate(BaseModel):
     title: str
     topic: str
-    created_by: Optional[str] = None
+    created_by: str
     questions: List[QuestionCreate]
 
 class AttemptSubmit(BaseModel):

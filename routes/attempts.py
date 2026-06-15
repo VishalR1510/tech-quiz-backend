@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models.quiz_models import AttemptSubmit
 from services.ai_service import generate_feedback
 from .dependencies import db_admin
+import uuid
 
 router = APIRouter(tags=["Attempts"])
 
@@ -12,18 +13,15 @@ def _resolve_quiz_id(quiz_id: str, db) -> str:
     Resolve quiz_id which could be UUID or quiz_code.
     Returns actual_quiz_id (UUID format)
     """
+    normalized_id = quiz_id.strip()
+
     try:
-        # First try UUID
-        print(f"[DEBUG] Trying UUID lookup...")
-        quiz_res = db.table("quizzes").select("id").eq("id", quiz_id).execute()
-        if quiz_res.data:
-            return quiz_res.data[0]["id"]
-    except Exception as uuid_err:
-        pass
-    
-    # If UUID fails, try quiz_code
-    print(f"[DEBUG] UUID lookup failed, trying quiz_code...")
-    quiz_res = db.table("quizzes").select("id").eq("quiz_code", quiz_id).execute()
+        uuid.UUID(normalized_id)
+        quiz_res = db.table("quizzes").select("id").eq("id", normalized_id).execute()
+    except ValueError:
+        quiz_res = db.table("quizzes").select("id").eq(
+            "quiz_code", normalized_id.upper()
+        ).execute()
     
     if quiz_res.data:
         return quiz_res.data[0]["id"]
@@ -55,6 +53,9 @@ async def submit_quiz(quiz_id: str, attempt_data: AttemptSubmit, db=Depends(db_a
         questions_res = db.table("questions").select("*").eq("quiz_id", actual_quiz_id).execute()
         questions = questions_res.data
         print(f"[DEBUG] Found {len(questions)} questions")
+
+        if not questions:
+            raise HTTPException(status_code=400, detail="Quiz has no questions")
         
         # Calculate score
         score = 0
@@ -134,7 +135,20 @@ async def get_results(quiz_id: str, user_id: str, db=Depends(db_admin)):
             raise HTTPException(status_code=404, detail="Attempt not found")
         
         print(f"[DEBUG] Attempt found successfully")
-        return attempts.data[0]
+        quiz_res = db.table("quizzes").select("title,topic").eq(
+            "id", actual_quiz_id
+        ).execute()
+        questions_res = db.table("questions").select(
+            "id", count="exact"
+        ).eq("quiz_id", actual_quiz_id).execute()
+
+        result = attempts.data[0]
+        if quiz_res.data:
+            result["quiz_title"] = quiz_res.data[0]["title"]
+            result["topic"] = quiz_res.data[0]["topic"]
+        result["total"] = questions_res.count or len(result.get("answers", {}))
+
+        return result
     except HTTPException:
         raise
     except Exception as e:
